@@ -11,14 +11,19 @@ def format_user_turn(user_text: str | None, blip_caption: str | None) -> str:
         return (
             "Automatic image description (from vision model):\n"
             f"{blip_caption}\n\n"
-            f"User message:\n{t}"
+            f"User message:\n{t}\n\n"
+            "Use the description as grounded visual context. Answer in specific, concrete "
+            "terms; do not invent details not supported by the description or the user's words."
         )
     if blip_caption and not t:
         return (
             "Automatic image description (from vision model):\n"
             f"{blip_caption}\n\n"
-            "The user did not type a separate message. Briefly describe what is shown "
-            "and invite them to ask follow-up questions about the image."
+            "The user only sent an image (no separate text). Reply with a rich, structured "
+            "description: 4–7 sentences covering main subjects, setting/environment, notable "
+            "objects, colors or lighting if inferable, and overall mood or composition when "
+            "supported by the description above. Use 'appears' / 'likely' when uncertain. "
+            "Then invite one follow-up question they might ask."
         )
     if not blip_caption and t:
         return t
@@ -89,7 +94,11 @@ class ChatOllama:
             "model": self.model,
             "messages": messages,
             "stream": True,
-            "options": {"temperature": 0.6, "top_p": 0.9},
+            "options": {
+                "temperature": 0.55,
+                "top_p": 0.92,
+                "num_predict": Config.OLLAMA_CHAT_MAX_TOKENS,
+            },
         }
         with requests.post(
             f"{self.base_url}/api/chat",
