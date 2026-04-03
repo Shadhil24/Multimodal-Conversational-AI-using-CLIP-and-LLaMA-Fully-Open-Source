@@ -50,7 +50,8 @@ imagebot/
 ├── utils/
 │   └── image_utils.py      # Image loading & validation helpers
 ├── templates/
-│   └── index.html          # Flask UI (dark-mode, drag-and-drop)
+│   ├── chat.html           # Chat UI (default /)
+│   └── legacy.html        # Single-image “quick analyze” (/legacy)
 └── static/
     ├── css/style.css
     └── js/main.js

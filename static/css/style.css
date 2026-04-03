@@ -52,6 +52,28 @@ body {
 .logo-icon { font-size: 1.4rem; }
 .logo-text { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
 
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  margin-right: auto;
+}
+.nav-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: .82rem;
+  font-weight: 500;
+  padding: .35rem .65rem;
+  border-radius: 8px;
+  transition: background .15s, color .15s;
+}
+.nav-link:hover { color: var(--text); background: var(--bg3); }
+.nav-link.active {
+  color: var(--text);
+  background: rgba(99,102,241,.2);
+  border: 1px solid rgba(99,102,241,.35);
+}
+
 .status-pill {
   display: flex;
   align-items: center;

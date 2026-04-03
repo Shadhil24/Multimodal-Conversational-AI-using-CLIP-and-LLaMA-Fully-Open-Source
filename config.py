@@ -29,3 +29,14 @@ class Config:
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
     OLLAMA_TIMEOUT = 120  # seconds
+
+    # Multi-turn chat (POST /api/chat)
+    CHAT_MAX_HISTORY_MESSAGES = int(os.getenv("CHAT_MAX_HISTORY_MESSAGES", "40"))
+    CHAT_SYSTEM_PROMPT = os.getenv(
+        "CHAT_SYSTEM_PROMPT",
+        "You are a helpful assistant in a chat app. Users may send text only, an image only, "
+        "or text and an image together. When an 'Automatic image description' block appears, "
+        "treat it as grounded context from a vision model about the attached photo—use it to "
+        "answer questions. Be concise unless the user asks for detail. Do not invent details "
+        "that are not supported by the description or the user's words.",
+    )

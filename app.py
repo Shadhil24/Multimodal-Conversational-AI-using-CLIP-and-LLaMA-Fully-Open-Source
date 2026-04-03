@@ -1,12 +1,19 @@
 import json
 import time
 
+import requests
 from flask import Flask, request, jsonify, render_template, Response, stream_with_context
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from config import Config
 from model.blip_handler import BlipHandler
+from model.chat_ollama import (
+    ChatOllama,
+    build_chat_messages,
+    format_user_turn,
+    validate_history,
+)
 from model.clip_handler import CLIPHandler
 from model.ollama_handler import OllamaHandler
 from utils.image_utils import allowed_file, load_image_from_bytes
@@ -18,6 +25,25 @@ CORS(app)
 _clip: CLIPHandler | None = None
 _blip: BlipHandler | None = None
 _ollama: OllamaHandler | None = None
+_chat_ollama: ChatOllama | None = None
+
+
+def get_chat_ollama() -> ChatOllama:
+    global _chat_ollama
+    if _chat_ollama is None:
+        _chat_ollama = ChatOllama()
+    return _chat_ollama
+
+
+def _parse_chat_request():
+    raw = request.form.get("history", "[]")
+    try:
+        history = validate_history(json.loads(raw))
+    except (json.JSONDecodeError, TypeError):
+        raise ValueError("Invalid history JSON") from None
+    message = request.form.get("message", "") or ""
+    image_file = request.files.get("image")
+    return history, message, image_file
 
 
 def _vision_backend() -> str:
@@ -83,7 +109,12 @@ def preload_vision_models():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("chat.html")
+
+
+@app.route("/legacy")
+def legacy():
+    return render_template("legacy.html")
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +133,103 @@ def status():
         "ollama_available": ollama_ok,
         "ollama_model": Config.OLLAMA_MODEL,
     })
+
+
+# ---------------------------------------------------------------------------
+# Chat API (text, image, or both — multipart)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    try:
+        history, message, image_file = _parse_chat_request()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    blip_caption: str | None = None
+    if image_file and image_file.filename:
+        if not allowed_file(image_file.filename):
+            return jsonify({"error": f"Unsupported image type. Allowed: {Config.ALLOWED_EXTENSIONS}"}), 415
+        try:
+            image_bytes = image_file.read()
+            vision = run_vision(load_image_from_bytes(image_bytes))
+            blip_caption = vision.get("blip_caption")
+        except Exception as e:
+            return jsonify({"error": f"Vision error: {e}"}), 500
+
+    user_content = format_user_turn(message or None, blip_caption)
+    if not user_content:
+        return jsonify({"error": "Send a non-empty message and/or an image."}), 400
+
+    ollama_messages = build_chat_messages(history, user_content)
+    try:
+        reply = get_chat_ollama().complete(ollama_messages)
+    except requests.exceptions.HTTPError as e:
+        return jsonify({"error": f"Ollama error: {e}"}), 502
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Cannot reach Ollama: {e}"}), 503
+
+    return jsonify({"reply": reply, "user_content": user_content})
+
+
+@app.route("/api/chat/stream", methods=["POST"])
+def api_chat_stream():
+    try:
+        history, message, image_file = _parse_chat_request()
+    except ValueError as e:
+
+        def err1():
+            yield f'event: error\ndata: {json.dumps({"error": str(e)})}\n\n'
+
+        return Response(stream_with_context(err1()), mimetype="text/event-stream")
+
+    blip_caption: str | None = None
+    if image_file and image_file.filename:
+        if not allowed_file(image_file.filename):
+
+            def err2():
+                yield f'event: error\ndata: {json.dumps({"error": "Unsupported image type"})}\n\n'
+
+            return Response(stream_with_context(err2()), mimetype="text/event-stream")
+        try:
+            image_bytes = image_file.read()
+            vision = run_vision(load_image_from_bytes(image_bytes))
+            blip_caption = vision.get("blip_caption")
+        except Exception as e:
+
+            def err3():
+                yield f'event: error\ndata: {json.dumps({"error": str(e)})}\n\n'
+
+            return Response(stream_with_context(err3()), mimetype="text/event-stream")
+
+    user_content = format_user_turn(message or None, blip_caption)
+    if not user_content:
+
+        def err4():
+            yield f'event: error\ndata: {json.dumps({"error": "Send a message and/or an image."})}\n\n'
+
+        return Response(stream_with_context(err4()), mimetype="text/event-stream")
+
+    ollama_messages = build_chat_messages(history, user_content)
+
+    def generate():
+        yield f'event: meta\ndata: {json.dumps({"user_content": user_content})}\n\n'
+        try:
+            for piece in get_chat_ollama().stream_complete(ollama_messages):
+                yield f'event: token\ndata: {json.dumps({"token": piece})}\n\n'
+        except requests.exceptions.RequestException as e:
+            yield f'event: error\ndata: {json.dumps({"error": str(e)})}\n\n'
+            return
+        yield 'event: done\ndata: {}\n\n'
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
