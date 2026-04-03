@@ -9,21 +9,20 @@ def format_user_turn(user_text: str | None, blip_caption: str | None) -> str:
     t = (user_text or "").strip()
     if blip_caption and t:
         return (
-            "Automatic image description (from vision model):\n"
+            "[Note—rough machine read of their photo, for you only—don't repeat back unless they ask]\n"
             f"{blip_caption}\n\n"
-            f"User message:\n{t}\n\n"
-            "Use the description as grounded visual context. Answer in specific, concrete "
-            "terms; do not invent details not supported by the description or the user's words."
+            f"They texted:\n{t}\n\n"
+            "Answer like their friend: straight to the point about what they asked. "
+            "Don't analyze the picture, the wall, the lighting, or what this could work for "
+            "unless that's what they're asking."
         )
     if blip_caption and not t:
         return (
-            "Automatic image description (from vision model):\n"
+            "[Note—rough machine read of their photo, for you only]\n"
             f"{blip_caption}\n\n"
-            "The user only sent an image (no separate text). Reply with a rich, structured "
-            "description: 4–7 sentences covering main subjects, setting/environment, notable "
-            "objects, colors or lighting if inferable, and overall mood or composition when "
-            "supported by the description above. Use 'appears' / 'likely' when uncertain. "
-            "Then invite one follow-up question they might ask."
+            "They only sent a pic, no words. Reply like a friend would—short, genuine, maybe "
+            "one casual reaction to what's probably in it. Not a formal paragraph-by-paragraph "
+            "description unless it really fits the vibe."
         )
     if not blip_caption and t:
         return t
@@ -72,12 +71,19 @@ class ChatOllama:
         self.model = Config.OLLAMA_MODEL
         self.timeout = Config.OLLAMA_TIMEOUT
 
+    def _chat_options(self) -> dict:
+        return {
+            "temperature": Config.OLLAMA_CHAT_TEMPERATURE,
+            "top_p": 0.93,
+            "num_predict": Config.OLLAMA_CHAT_MAX_TOKENS,
+        }
+
     def complete(self, messages: list[dict]) -> str:
         payload = {
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": 0.6, "top_p": 0.9},
+            "options": self._chat_options(),
         }
         r = requests.post(
             f"{self.base_url}/api/chat",
@@ -94,11 +100,7 @@ class ChatOllama:
             "model": self.model,
             "messages": messages,
             "stream": True,
-            "options": {
-                "temperature": 0.55,
-                "top_p": 0.92,
-                "num_predict": Config.OLLAMA_CHAT_MAX_TOKENS,
-            },
+            "options": self._chat_options(),
         }
         with requests.post(
             f"{self.base_url}/api/chat",
