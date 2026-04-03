@@ -28,8 +28,9 @@
     <section class="hero">
       <h1 class="hero-title">Turn Images into Words</h1>
       <p class="hero-subtitle">
-        Upload any image and let <strong>CLIP</strong> + <strong>Llama 3.2</strong>
-        generate a rich, natural-language description in seconds.
+        Upload any image: <strong>BLIP</strong> writes an open caption,
+        <strong>Llama 3.2</strong> polishes it. Optional <strong>CLIP</strong> tags via
+        <code class="hero-code">VISION_BACKEND</code>.
       </p>
     </section>
 
@@ -71,10 +72,18 @@
           <p>Upload an image and click <strong>Analyse</strong> to see results here.</p>
         </div>
 
+        <!-- BLIP draft (shown when backend uses BLIP) -->
+        <div id="blipSection" style="display:none">
+          <h3 class="section-label">
+            <span class="badge badge-teal">BLIP</span> Model caption (draft)
+          </h3>
+          <div class="description-box blip-draft" id="blipDraftBox"></div>
+        </div>
+
         <!-- CLIP section -->
         <div id="clipSection" style="display:none">
           <h3 class="section-label">
-            <span class="badge badge-blue">CLIP</span> Detected Elements
+            <span class="badge badge-blue">CLIP</span> Tag scores (fixed label list)
           </h3>
           <div class="label-grid" id="labelGrid"></div>
         </div>

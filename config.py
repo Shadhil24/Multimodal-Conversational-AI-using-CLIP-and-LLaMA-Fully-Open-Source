@@ -17,6 +17,14 @@ class Config:
     # With ~100 candidates, uniform chance ≈ 1%.  10% = 10× above noise.
     CLIP_MIN_CONFIDENCE = 10.0
 
+    # Vision backend: "blip" = image captioning (recommended), "clip" = label list only,
+    # "both" = BLIP caption + CLIP tag chips (two models in memory).
+    VISION_BACKEND = os.getenv("VISION_BACKEND", "blip").strip().lower()
+
+    # BLIP image captioning (Salesforce/blip-image-captioning-base ≈ 990M params)
+    BLIP_MODEL_NAME = os.getenv("BLIP_MODEL_NAME", "Salesforce/blip-image-captioning-base")
+    BLIP_MAX_CAPTION_LEN = 75
+
     # Ollama config
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")

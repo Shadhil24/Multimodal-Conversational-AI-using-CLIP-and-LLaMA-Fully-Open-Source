@@ -4,46 +4,59 @@ from config import Config
 
 
 def _filter_labels(clip_results: list[dict]) -> list[dict]:
-    """
-    Remove noisy low-confidence labels before sending to the LLM.
-
-    With ~100 candidate labels, the softmax noise floor is ≈1%.
-    We keep only labels that are above CLIP_MIN_CONFIDENCE (default 10%),
-    capped at CLIP_TOP_K_TO_LLM entries.  If nothing passes the threshold
-    we fall back to just the single top label so the LLM always has something.
-    """
     filtered = [r for r in clip_results if r["confidence"] >= Config.CLIP_MIN_CONFIDENCE]
     filtered = filtered[: Config.CLIP_TOP_K_TO_LLM]
-    if not filtered:
-        filtered = clip_results[:1]   # fallback: keep the single best label
+    if not filtered and clip_results:
+        filtered = clip_results[:1]
     return filtered
 
 
-def _build_prompt(clip_results: list[dict]) -> str:
-    filtered = _filter_labels(clip_results)
-    confidence_lines = "\n".join(
-        f"  - {r['label']} ({r['confidence']}%)" for r in filtered
-    )
+def _build_prompt(*, clip_results: list[dict] | None, blip_caption: str | None) -> str:
+    """
+    If blip_caption is set, it is the primary visual signal (open vocabulary).
+    Optional clip_results add coarse tags; Ollama should not override BLIP with wrong tags.
+    """
+    parts = ["You are an expert image analyst."]
 
-    # Tell the LLM exactly how many reliable signals we have so it doesn't
-    # invent extra elements that aren't in the image.
-    count = len(filtered)
-    focus_note = (
-        "Only ONE element was detected with high confidence."
-        if count == 1
-        else f"Only {count} elements were detected with high confidence."
-    )
+    if blip_caption:
+        parts.append(
+            "An image captioning model produced this draft description.\n"
+            f"---\n{blip_caption}\n---\n"
+            "Write one or two clear, natural sentences for a general audience. "
+            "Stay faithful to the draft: do not add people, objects, or relationships "
+            "that are not supported by it, and do not contradict it.\n"
+        )
 
-    return (
-        "You are an expert image analyst. "
-        f"{focus_note} "
-        "Based ONLY on the detected elements listed below, write a single "
-        "concise and accurate sentence or two describing what this image most "
-        "likely shows. Do NOT invent or add any objects, animals, or scenes "
-        "that are not in the list. Stick strictly to what is detected.\n\n"
-        f"High-confidence detected elements:\n{confidence_lines}\n\n"
-        "Image description:"
-    )
+    if clip_results:
+        filtered = _filter_labels(clip_results)
+        confidence_lines = "\n".join(
+            f"  - {r['label']} ({r['confidence']}%)" for r in filtered
+        )
+        count = len(filtered)
+        focus_note = (
+            "Only ONE coarse tag exceeded the confidence threshold."
+            if count == 1
+            else f"Only {count} coarse tags exceeded the confidence threshold."
+        )
+        if blip_caption:
+            parts.append(
+                f"Optional extra tags from a separate classifier ({focus_note}). "
+                "Use them only if they agree with the draft above; ignore conflicting tags.\n"
+                f"Tags:\n{confidence_lines}\n"
+            )
+        else:
+            parts.append(
+                f"{focus_note} Based ONLY on the tags below, write one or two concise "
+                "sentences describing what the image most likely shows. Do NOT invent "
+                "objects or scenes not implied by the tags.\n\n"
+                f"Tags:\n{confidence_lines}\n"
+            )
+
+    if not blip_caption and not clip_results:
+        parts.append("No visual signal was provided.")
+
+    parts.append("\nImage description:")
+    return "".join(parts)
 
 
 class OllamaHandler:
@@ -53,19 +66,22 @@ class OllamaHandler:
         self.timeout = Config.OLLAMA_TIMEOUT
 
     def is_available(self) -> bool:
-        """Check if Ollama service is running."""
         try:
             resp = requests.get(f"{self.base_url}/api/tags", timeout=5)
             return resp.status_code == 200
         except requests.exceptions.ConnectionError:
             return False
 
-    def generate_description(self, clip_results: list[dict]) -> str:
-        """
-        Build a filtered prompt from CLIP results and ask the LLM for a
-        grounded, accurate image description.
-        """
-        prompt = _build_prompt(clip_results)
+    def generate_description(
+        self,
+        *,
+        clip_results: list[dict] | None = None,
+        blip_caption: str | None = None,
+    ) -> str:
+        prompt = _build_prompt(
+            clip_results=clip_results or [],
+            blip_caption=blip_caption,
+        )
 
         payload = {
             "model": self.model,
@@ -97,12 +113,16 @@ class OllamaHandler:
         except requests.exceptions.HTTPError as e:
             raise RuntimeError(f"Ollama API error: {e}")
 
-    def generate_stream(self, clip_results: list[dict]):
-        """
-        Generator that yields tokens from Ollama's streaming API.
-        Uses the same filtered, grounded prompt as generate_description.
-        """
-        prompt = _build_prompt(clip_results)
+    def generate_stream(
+        self,
+        *,
+        clip_results: list[dict] | None = None,
+        blip_caption: str | None = None,
+    ):
+        prompt = _build_prompt(
+            clip_results=clip_results or [],
+            blip_caption=blip_caption,
+        )
 
         payload = {
             "model": self.model,

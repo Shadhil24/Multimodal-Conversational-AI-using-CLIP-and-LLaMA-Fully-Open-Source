@@ -15,6 +15,8 @@ const btnLabel    = document.getElementById('btnLabel');
 const btnSpinner  = document.getElementById('btnSpinner');
 
 const placeholder   = document.getElementById('placeholder');
+const blipSection   = document.getElementById('blipSection');
+const blipDraftBox  = document.getElementById('blipDraftBox');
 const clipSection   = document.getElementById('clipSection');
 const labelGrid     = document.getElementById('labelGrid');
 const descSection   = document.getElementById('descSection');
@@ -39,7 +41,10 @@ async function checkStatus() {
     const data = await res.json();
     if (data.ollama_available) {
       statusDot.className  = 'status-dot ok';
-      statusText.textContent = `Ollama ready · ${data.ollama_model}`;
+      const vb = data.vision_backend || '';
+      statusText.textContent = vb
+        ? `${vb} · Ollama ${data.ollama_model}`
+        : `Ollama ready · ${data.ollama_model}`;
     } else {
       statusDot.className  = 'status-dot err';
       statusText.textContent = 'Ollama offline';
@@ -95,6 +100,8 @@ function clearFile() {
 
 function clearResults() {
   placeholder.style.display   = '';
+  if (blipSection) blipSection.style.display = 'none';
+  if (blipDraftBox) blipDraftBox.textContent = '';
   clipSection.style.display   = 'none';
   descSection.style.display   = 'none';
   errorBox.style.display      = 'none';
@@ -154,7 +161,7 @@ async function runAnalysis() {
     let buffer    = '';
     let fullText  = '';
     let cursor    = null;
-    let t0        = Date.now();
+    let sseEvent  = '';
 
     // Show description section immediately for streaming effect
     descSection.style.display = '';
@@ -172,7 +179,10 @@ async function runAnalysis() {
       buffer = lines.pop();      // keep incomplete last line
 
       for (const line of lines) {
-        if (line.startsWith('event: ')) continue;  // handled below via data pairing
+        if (line.startsWith('event: ')) {
+          sseEvent = line.slice(7).trim();
+          continue;
+        }
         if (!line.startsWith('data: ')) continue;
         const raw = line.slice(6).trim();
         if (!raw) continue;
@@ -180,15 +190,27 @@ async function runAnalysis() {
         let parsed;
         try { parsed = JSON.parse(raw); } catch { continue; }
 
-        // Determine event type from preceding line (use buffer trick or look back)
-        // Since we skipped event lines, detect by payload shape
-        if (Array.isArray(parsed)) {
-          // CLIP results
+        if (parsed.error) {
+          showError(parsed.error);
+          sseEvent = '';
+          continue;
+        }
+
+        if (sseEvent === 'blip' && typeof parsed.caption === 'string') {
+          if (blipDraftBox) blipDraftBox.textContent = parsed.caption;
+          if (blipSection) blipSection.style.display = '';
+          placeholder.style.display = 'none';
+        } else if (sseEvent === 'clip' && Array.isArray(parsed)) {
           renderClipResults(parsed);
           clipSection.style.display = '';
           placeholder.style.display = 'none';
-        } else if (parsed.token !== undefined) {
-          // Streaming token
+        } else if (Array.isArray(parsed)) {
+          renderClipResults(parsed);
+          clipSection.style.display = '';
+          placeholder.style.display = 'none';
+        }
+
+        if (parsed.token !== undefined) {
           fullText += parsed.token;
           if (cursor) cursor.remove();
           descriptionBox.textContent = fullText;
@@ -196,14 +218,13 @@ async function runAnalysis() {
           cursor.className = 'cursor-blink';
           descriptionBox.appendChild(cursor);
         } else if (parsed.elapsed_ms !== undefined) {
-          // Done
           if (cursor) cursor.remove();
           descriptionBox.textContent = fullText;
           elapsedMs.textContent      = `⏱ ${(parsed.elapsed_ms / 1000).toFixed(2)}s`;
           metaRow.style.display      = 'flex';
-        } else if (parsed.error) {
-          showError(parsed.error);
         }
+
+        sseEvent = '';
       }
     }
   } catch (err) {

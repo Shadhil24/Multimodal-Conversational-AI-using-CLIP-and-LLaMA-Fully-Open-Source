@@ -7,8 +7,9 @@ from config import Config
 # Comprehensive candidate labels for zero-shot image classification
 CANDIDATE_LABELS = [
     # People
-    "a person", "a man", "a woman", "a child", "a baby", "a group of people",
-    "a crowd", "a couple", "an elderly person", "a teenager",
+    "a person", "a man", "a woman", "a child", "two children", "two kids",
+    "a baby", "a group of people", "a crowd", "a couple", "an elderly person",
+    "a teenager",
     # Animals
     "a dog", "a cat", "a bird", "a horse", "a cow", "a sheep", "a pig",
     "a lion", "a tiger", "a bear", "a fox", "a rabbit", "a deer", "a fish",

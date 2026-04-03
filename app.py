@@ -1,6 +1,3 @@
-import os
-import io
-import base64
 import json
 import time
 
@@ -9,17 +6,25 @@ from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from config import Config
+from model.blip_handler import BlipHandler
 from model.clip_handler import CLIPHandler
 from model.ollama_handler import OllamaHandler
-from utils.image_utils import allowed_file, load_image_from_bytes, resize_for_preview
+from utils.image_utils import allowed_file, load_image_from_bytes
 
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
 
-# Lazy-loaded singletons
 _clip: CLIPHandler | None = None
+_blip: BlipHandler | None = None
 _ollama: OllamaHandler | None = None
+
+
+def _vision_backend() -> str:
+    b = (Config.VISION_BACKEND or "blip").strip().lower()
+    if b not in ("blip", "clip", "both"):
+        return "blip"
+    return b
 
 
 def get_clip() -> CLIPHandler:
@@ -29,11 +34,47 @@ def get_clip() -> CLIPHandler:
     return _clip
 
 
+def get_blip() -> BlipHandler:
+    global _blip
+    if _blip is None:
+        _blip = BlipHandler()
+    return _blip
+
+
 def get_ollama() -> OllamaHandler:
     global _ollama
     if _ollama is None:
         _ollama = OllamaHandler()
     return _ollama
+
+
+def run_vision(image):
+    """
+    Run BLIP and/or CLIP depending on VISION_BACKEND.
+    Returns dict: clip_results (list), blip_caption (str | None)
+    """
+    backend = _vision_backend()
+    clip_results: list = []
+    blip_caption: str | None = None
+
+    if backend in ("clip", "both"):
+        clip_results = get_clip().analyze_image(image)
+    if backend in ("blip", "both"):
+        blip_caption = get_blip().caption(image)
+
+    return {
+        "clip_results": clip_results,
+        "blip_caption": blip_caption,
+    }
+
+
+def preload_vision_models():
+    """Load models at startup based on configured backend."""
+    b = _vision_backend()
+    if b in ("blip", "both"):
+        get_blip()
+    if b in ("clip", "both"):
+        get_clip()
 
 
 # ---------------------------------------------------------------------------
@@ -52,29 +93,23 @@ def index():
 @app.route("/api/status", methods=["GET"])
 def status():
     ollama_ok = get_ollama().is_available()
+    vb = _vision_backend()
     return jsonify({
         "status": "ok",
+        "vision_backend": vb,
+        "blip_model": Config.BLIP_MODEL_NAME if vb in ("blip", "both") else None,
+        "clip_model": Config.CLIP_MODEL_NAME if vb in ("clip", "both") else None,
         "ollama_available": ollama_ok,
         "ollama_model": Config.OLLAMA_MODEL,
-        "clip_model": Config.CLIP_MODEL_NAME,
     })
 
 
 # ---------------------------------------------------------------------------
-# Core API: Analyse image → CLIP labels + Ollama description
+# Core API
 # ---------------------------------------------------------------------------
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    """
-    Accepts a multipart/form-data POST with an image file.
-    Returns JSON:
-        {
-            "clip_results": [ {"label": ..., "confidence": ...}, ... ],
-            "description":  "<generated text>",
-            "elapsed_ms":   <int>
-        }
-    """
     if "image" not in request.files:
         return jsonify({"error": "No image file provided. Use key 'image'."}), 400
 
@@ -89,43 +124,36 @@ def analyze():
 
     t0 = time.perf_counter()
 
-    # Step 1 – CLIP zero-shot classification
     try:
-        clip_results = get_clip().analyze_image(image)
+        vision = run_vision(image)
     except Exception as e:
-        return jsonify({"error": f"CLIP error: {e}"}), 500
+        return jsonify({"error": f"Vision model error: {e}"}), 500
 
-    # Step 2 – Ollama description generation
     try:
-        description = get_ollama().generate_description(clip_results)
+        description = get_ollama().generate_description(
+            clip_results=vision["clip_results"] or None,
+            blip_caption=vision["blip_caption"],
+        )
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
     return jsonify({
-        "clip_results": clip_results,
+        "vision_backend": _vision_backend(),
+        "blip_caption": vision["blip_caption"],
+        "clip_results": vision["clip_results"],
         "description": description,
         "elapsed_ms": elapsed_ms,
     })
 
 
 # ---------------------------------------------------------------------------
-# Streaming API (Server-Sent Events)
+# Streaming API (SSE)
 # ---------------------------------------------------------------------------
 
 @app.route("/api/analyze/stream", methods=["POST"])
 def analyze_stream():
-    """
-    Same as /api/analyze but streams the LLM response token by token
-    using Server-Sent Events (SSE).
-
-    SSE event types:
-        - clip   : JSON array of CLIP results (sent once)
-        - token  : one LLM token
-        - done   : signals completion with elapsed_ms
-        - error  : error message
-    """
     if "image" not in request.files:
         def err():
             yield 'data: {"error": "No image provided"}\n\n'
@@ -143,18 +171,23 @@ def analyze_stream():
     def generate():
         t0 = time.perf_counter()
 
-        # CLIP step
         try:
-            clip_results = get_clip().analyze_image(image)
+            vision = run_vision(image)
         except Exception as e:
             yield f'event: error\ndata: {json.dumps({"error": str(e)})}\n\n'
             return
 
-        yield f'event: clip\ndata: {json.dumps(clip_results)}\n\n'
+        if vision["blip_caption"]:
+            yield f'event: blip\ndata: {json.dumps({"caption": vision["blip_caption"]})}\n\n'
 
-        # Streaming LLM step
+        if vision["clip_results"]:
+            yield f'event: clip\ndata: {json.dumps(vision["clip_results"])}\n\n'
+
         try:
-            for token in get_ollama().generate_stream(clip_results):
+            for token in get_ollama().generate_stream(
+                clip_results=vision["clip_results"] or None,
+                blip_caption=vision["blip_caption"],
+            ):
                 yield f'event: token\ndata: {json.dumps({"token": token})}\n\n'
         except Exception as e:
             yield f'event: error\ndata: {json.dumps({"error": str(e)})}\n\n'
@@ -197,13 +230,17 @@ def server_error(e):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    vb = _vision_backend()
     print("=" * 60)
-    print("  ImageBot – CLIP + Ollama Image-to-Text")
-    print(f"  CLIP model  : {Config.CLIP_MODEL_NAME}")
+    print("  ImageBot – Vision + Ollama")
+    print(f"  Vision mode : {vb}")
+    if vb in ("blip", "both"):
+        print(f"  BLIP model  : {Config.BLIP_MODEL_NAME}")
+    if vb in ("clip", "both"):
+        print(f"  CLIP model  : {Config.CLIP_MODEL_NAME}")
     print(f"  LLM model   : {Config.OLLAMA_MODEL}")
     print(f"  Ollama URL  : {Config.OLLAMA_BASE_URL}")
     print("  Open http://localhost:5000 in your browser")
     print("=" * 60)
-    # Pre-load CLIP on startup so the first request is fast
-    get_clip()
+    preload_vision_models()
     app.run(debug=True, host="0.0.0.0", port=5000)
