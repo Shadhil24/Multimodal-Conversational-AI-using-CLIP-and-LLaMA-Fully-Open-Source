@@ -244,6 +244,27 @@ body {
 }
 .label-chip.high  { border-color: rgba(99,102,241,.5); background: rgba(99,102,241,.1); }
 .label-chip.mid   { border-color: rgba(168,85,247,.4); background: rgba(168,85,247,.08); }
+.label-chip.noise {
+  opacity: .42;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+.chip-noise {
+  font-size: .65rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: .1rem;
+}
+.label-legend {
+  width: 100%;
+  font-size: .72rem;
+  color: var(--text-muted);
+  margin-top: .3rem;
+  padding-top: .4rem;
+  border-top: 1px solid var(--border);
+}
+.legend-used  { color: #818cf8; }
+.legend-noise { color: var(--text-muted); }
 
 /* Description box */
 .description-box {

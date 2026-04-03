@@ -1,5 +1,49 @@
+import json
 import requests
 from config import Config
+
+
+def _filter_labels(clip_results: list[dict]) -> list[dict]:
+    """
+    Remove noisy low-confidence labels before sending to the LLM.
+
+    With ~100 candidate labels, the softmax noise floor is ≈1%.
+    We keep only labels that are above CLIP_MIN_CONFIDENCE (default 10%),
+    capped at CLIP_TOP_K_TO_LLM entries.  If nothing passes the threshold
+    we fall back to just the single top label so the LLM always has something.
+    """
+    filtered = [r for r in clip_results if r["confidence"] >= Config.CLIP_MIN_CONFIDENCE]
+    filtered = filtered[: Config.CLIP_TOP_K_TO_LLM]
+    if not filtered:
+        filtered = clip_results[:1]   # fallback: keep the single best label
+    return filtered
+
+
+def _build_prompt(clip_results: list[dict]) -> str:
+    filtered = _filter_labels(clip_results)
+    confidence_lines = "\n".join(
+        f"  - {r['label']} ({r['confidence']}%)" for r in filtered
+    )
+
+    # Tell the LLM exactly how many reliable signals we have so it doesn't
+    # invent extra elements that aren't in the image.
+    count = len(filtered)
+    focus_note = (
+        "Only ONE element was detected with high confidence."
+        if count == 1
+        else f"Only {count} elements were detected with high confidence."
+    )
+
+    return (
+        "You are an expert image analyst. "
+        f"{focus_note} "
+        "Based ONLY on the detected elements listed below, write a single "
+        "concise and accurate sentence or two describing what this image most "
+        "likely shows. Do NOT invent or add any objects, animals, or scenes "
+        "that are not in the list. Stick strictly to what is detected.\n\n"
+        f"High-confidence detected elements:\n{confidence_lines}\n\n"
+        "Image description:"
+    )
 
 
 class OllamaHandler:
@@ -18,32 +62,19 @@ class OllamaHandler:
 
     def generate_description(self, clip_results: list[dict]) -> str:
         """
-        Build a prompt from CLIP results and ask the LLM to generate
-        a natural-language image description.
+        Build a filtered prompt from CLIP results and ask the LLM for a
+        grounded, accurate image description.
         """
-        top_labels = [r["label"] for r in clip_results]
-        confidence_lines = "\n".join(
-            f"  - {r['label']} ({r['confidence']}%)" for r in clip_results
-        )
-
-        prompt = (
-            "You are an expert image analyst. Based on the following visual elements "
-            "detected in an image (ranked by confidence), write a single coherent, "
-            "vivid, and natural paragraph that describes what the image likely shows. "
-            "Do NOT list the items—write a flowing description as if you are looking "
-            "at the image yourself.\n\n"
-            f"Detected elements:\n{confidence_lines}\n\n"
-            "Image description:"
-        )
+        prompt = _build_prompt(clip_results)
 
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.7,
+                "temperature": 0.5,
                 "top_p": 0.9,
-                "num_predict": 300,
+                "num_predict": 200,
             },
         }
 
@@ -69,26 +100,15 @@ class OllamaHandler:
     def generate_stream(self, clip_results: list[dict]):
         """
         Generator that yields tokens from Ollama's streaming API.
+        Uses the same filtered, grounded prompt as generate_description.
         """
-        top_labels = [r["label"] for r in clip_results]
-        confidence_lines = "\n".join(
-            f"  - {r['label']} ({r['confidence']}%)" for r in clip_results
-        )
-
-        prompt = (
-            "You are an expert image analyst. Based on the following visual elements "
-            "detected in an image (ranked by confidence), write a single coherent, "
-            "vivid, and natural paragraph that describes what the image likely shows. "
-            "Do NOT list the items—write a flowing description.\n\n"
-            f"Detected elements:\n{confidence_lines}\n\n"
-            "Image description:"
-        )
+        prompt = _build_prompt(clip_results)
 
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": True,
-            "options": {"temperature": 0.7, "top_p": 0.9, "num_predict": 300},
+            "options": {"temperature": 0.5, "top_p": 0.9, "num_predict": 200},
         }
 
         with requests.post(
@@ -100,7 +120,6 @@ class OllamaHandler:
             resp.raise_for_status()
             for line in resp.iter_lines():
                 if line:
-                    import json
                     chunk = json.loads(line)
                     token = chunk.get("response", "")
                     if token:

@@ -216,15 +216,39 @@ async function runAnalysis() {
 // ----------------------------------------------------------------
 // Render CLIP label chips
 // ----------------------------------------------------------------
+const MIN_CONFIDENCE = 10.0;   // must match config.py CLIP_MIN_CONFIDENCE
+const TOP_K_TO_LLM   = 5;      // must match config.py CLIP_TOP_K_TO_LLM
+
 function renderClipResults(results) {
   labelGrid.innerHTML = '';
-  results.forEach((r, i) => {
+
+  // Determine which labels were actually sent to the LLM
+  const sentToLLM = results
+    .filter(r => r.confidence >= MIN_CONFIDENCE)
+    .slice(0, TOP_K_TO_LLM);
+  const sentLabels = new Set(sentToLLM.map(r => r.label));
+  if (sentLabels.size === 0 && results.length > 0) sentLabels.add(results[0].label);
+
+  results.forEach(r => {
     const chip = document.createElement('div');
-    const cls  = i < 3 ? 'label-chip high' : i < 7 ? 'label-chip mid' : 'label-chip';
-    chip.className = cls;
-    chip.innerHTML = `${r.label} <span class="chip-pct">${r.confidence}%</span>`;
+    const used = sentLabels.has(r.label);
+    chip.className = used
+      ? (r.confidence >= 15 ? 'label-chip high' : 'label-chip mid')
+      : 'label-chip noise';
+    chip.title = used ? 'Sent to LLM' : 'Filtered out (low confidence noise)';
+    chip.innerHTML = `${r.label} <span class="chip-pct">${r.confidence}%</span>`
+      + (used ? '' : ' <span class="chip-noise">filtered</span>');
     labelGrid.appendChild(chip);
   });
+
+  // Add a legend if any were filtered
+  const filtered = results.filter(r => !sentLabels.has(r.label));
+  if (filtered.length > 0) {
+    const legend = document.createElement('div');
+    legend.className = 'label-legend';
+    legend.innerHTML = `<span class="legend-used">■</span> used by LLM &nbsp; <span class="legend-noise">■</span> filtered noise`;
+    labelGrid.appendChild(legend);
+  }
 }
 
 // ----------------------------------------------------------------
