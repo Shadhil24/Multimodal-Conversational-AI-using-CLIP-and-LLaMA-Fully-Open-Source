@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ImageBot – AI Image Description</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🖼️</span>
+        <span class="logo-text">ImageBot</span>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Checking…</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Hero -->
+    <section class="hero">
+      <h1 class="hero-title">Turn Images into Words</h1>
+      <p class="hero-subtitle">
+        Upload any image and let <strong>CLIP</strong> + <strong>Llama 3.2</strong>
+        generate a rich, natural-language description in seconds.
+      </p>
+    </section>
+
+    <div class="card-grid">
+      <!-- Upload card -->
+      <div class="card upload-card">
+        <h2 class="card-title">Upload Image</h2>
+
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-icon">📁</div>
+          <p class="drop-label">Drag & drop an image here</p>
+          <p class="drop-sub">or click to browse</p>
+          <input type="file" id="fileInput" accept="image/*" hidden />
+        </div>
+
+        <div class="preview-wrap" id="previewWrap" style="display:none">
+          <img id="previewImg" class="preview-img" src="" alt="Preview" />
+          <button class="btn-remove" id="btnRemove" title="Remove image">✕</button>
+        </div>
+
+        <div class="file-info" id="fileInfo" style="display:none">
+          <span id="fileName"></span>
+          <span id="fileSize"></span>
+        </div>
+
+        <button class="btn-primary" id="btnAnalyze" disabled>
+          <span id="btnLabel">Analyse Image</span>
+          <span class="btn-spinner" id="btnSpinner" style="display:none"></span>
+        </button>
+      </div>
+
+      <!-- Results card -->
+      <div class="card results-card">
+        <h2 class="card-title">Results</h2>
+
+        <!-- Placeholder -->
+        <div class="placeholder" id="placeholder">
+          <div class="placeholder-icon">🔍</div>
+          <p>Upload an image and click <strong>Analyse</strong> to see results here.</p>
+        </div>
+
+        <!-- CLIP section -->
+        <div id="clipSection" style="display:none">
+          <h3 class="section-label">
+            <span class="badge badge-blue">CLIP</span> Detected Elements
+          </h3>
+          <div class="label-grid" id="labelGrid"></div>
+        </div>
+
+        <!-- Description section -->
+        <div id="descSection" style="display:none">
+          <h3 class="section-label">
+            <span class="badge badge-purple">Llama 3.2</span> Description
+          </h3>
+          <div class="description-box" id="descriptionBox"></div>
+          <div class="meta-row" id="metaRow" style="display:none">
+            <span id="elapsedMs"></span>
+            <button class="btn-copy" id="btnCopy" title="Copy description">📋 Copy</button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div class="error-box" id="errorBox" style="display:none">
+          <span class="error-icon">⚠️</span>
+          <span id="errorMsg"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Docs -->
+    <section class="api-docs">
+      <h2 class="card-title">REST API</h2>
+      <div class="api-table-wrap">
+        <table class="api-table">
+          <thead>
+            <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method-badge get">GET</span></td>
+              <td><code>/api/status</code></td>
+              <td>Service health check</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge post">POST</span></td>
+              <td><code>/api/analyze</code></td>
+              <td>Upload image → CLIP labels + full description (JSON)</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge post">POST</span></td>
+              <td><code>/api/analyze/stream</code></td>
+              <td>Upload image → CLIP labels + streaming SSE description</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <span>curl example</span>
+          <button class="btn-copy-code" onclick="copyCurl()">Copy</button>
+        </div>
+        <pre id="curlExample">curl -X POST http://localhost:5000/api/analyze \
+  -F "image=@/path/to/your/image.jpg"</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>ImageBot &mdash; CLIP + Llama 3.2 via Ollama &mdash; Built with Flask</p>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
