@@ -5,6 +5,23 @@ from transformers import BlipForConditionalGeneration, BlipProcessor
 from config import Config
 
 
+def sanitize_blip_caption(text: str) -> str:
+    """BLIP sometimes emits small word glitches; clean before showing / sending to an LLM."""
+    s = " ".join((text or "").split())
+    for bad, good in (
+        (" each other men", " each other"),
+        (" next to each other men", " next to each other"),
+    ):
+        s = s.replace(bad, good)
+    parts = s.split()
+    out: list[str] = []
+    for w in parts:
+        if out and w.lower() == out[-1].lower():
+            continue
+        out.append(w)
+    return " ".join(out).strip()
+
+
 class BlipHandler:
     """
     BLIP generates a free-form caption from pixels (not a fixed label list).
@@ -43,4 +60,4 @@ class BlipHandler:
                 num_beams=4,
             )
         caption = self.processor.decode(out_ids[0], skip_special_tokens=True)
-        return caption.strip()
+        return sanitize_blip_caption(caption)
