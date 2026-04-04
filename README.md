@@ -38,24 +38,26 @@ User uploads image
 
 ```
 imagebot/
-├── app.py                  # Flask application + API routes
-├── config.py               # Configuration (models, paths, limits)
-├── requirements.txt        # Python dependencies
-├── .env.example            # Environment variable template
-├── .gitignore
-├── model/
-│   ├── blip_handler.py    # BLIP image captioning
-│   ├── clip_handler.py     # CLIP zero-shot tags (optional)
-│   └── ollama_handler.py   # Ollama LLM integration
+├── app.py                  # Flask app: UI routes + registers API blueprint
+├── extensions.py           # Model singletons + run_vision()
+├── blueprints/api.py       # REST API only (`/api/*`, JSON + SSE)
+├── services/               # Business logic used by the API
+│   ├── chat_service.py
+│   └── analyze_service.py
+├── config.py               # Configuration
+├── requirements.txt
+├── .env.example
+├── model/                  # BLIP, CLIP, Ollama chat/generate handlers
 ├── utils/
-│   └── image_utils.py      # Image loading & validation helpers
-├── templates/
-│   ├── chat.html           # Chat UI (default /)
-│   └── legacy.html        # Single-image “quick analyze” (/legacy)
+├── templates/              # chat.html, legacy.html
 └── static/
-    ├── css/style.css
-    └── js/main.js
+    ├── js/api.js           # `IB.*` URL constants for the browser client
+    ├── js/chat.js
+    ├── js/main.js
+    └── css/
 ```
+
+The browser UI **only** calls `/api/*` (see `static/js/api.js`). **`GET /api`** or **`GET /api/`** returns a JSON catalog of endpoints.
 
 ---
 

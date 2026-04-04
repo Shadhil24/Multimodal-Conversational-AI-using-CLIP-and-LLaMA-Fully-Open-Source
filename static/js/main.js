@@ -37,7 +37,7 @@ let selectedFile = null;
 // ----------------------------------------------------------------
 async function checkStatus() {
   try {
-    const res  = await fetch('/api/status');
+    const res  = await fetch(IB.status);
     const data = await res.json();
     if (data.ollama_available) {
       statusDot.className  = 'status-dot ok';
@@ -145,7 +145,7 @@ async function runAnalysis() {
   formData.append('image', selectedFile);
 
   try {
-    const resp = await fetch('/api/analyze/stream', {
+    const resp = await fetch(IB.analyzeStream, {
       method: 'POST',
       body: formData,
     });

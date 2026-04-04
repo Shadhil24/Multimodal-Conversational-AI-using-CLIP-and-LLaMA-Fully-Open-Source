@@ -36,7 +36,7 @@ function setBusy(busy) {
 
 async function checkStatus() {
   try {
-    const res = await fetch('/api/status');
+    const res = await fetch(IB.status);
     const data = await res.json();
     footerModel.textContent = data.ollama_model || '';
     if (data.ollama_available) {
@@ -163,7 +163,7 @@ async function sendMessage() {
   setBusy(true);
 
   try {
-    const resp = await fetch('/api/chat/stream', { method: 'POST', body: form });
+    const resp = await fetch(IB.chatStream, { method: 'POST', body: form });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       wrap.remove();
