@@ -10,7 +10,7 @@ Chat UI with multimodal turns: text plus optional image upload, BLIP + Ollama in
 
 ![Multimodal chat session — image + follow-up question](docs/images/chat-demo.png)
 
-**Why BLIP?** CLIP only scores a **fixed list** of short phrases (“a couple”, “a child”, …). Two children can wrongly rank as “a couple” because the list may not contain “two kids standing together”, and embeddings confuse “two people” with romantic pairs. **BLIP** is a **captioning** model: it generates an open sentence from pixels (e.g. “two young children standing side by side”), which fits scenes like yours much better.
+**Why BLIP?** CLIP only scores a **fixed list** of short phrases (“a couple”, “a child”, …). Two children can wrongly rank as “a couple” because the list may not contain “two kids standing together”, and embeddings confuse “two people” with romantic pairs. **BLIP** is a **captioning** model: it generates an open sentence from pixels (e.g. “two young children standing side by side”)
 
 ---
 
