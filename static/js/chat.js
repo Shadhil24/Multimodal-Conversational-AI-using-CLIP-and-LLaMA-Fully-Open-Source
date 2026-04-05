@@ -67,7 +67,7 @@ function renderMessage(role, content, imageDataUrl, options = {}) {
 
   const label = document.createElement('div');
   label.className = 'chat-msg-label';
-  label.textContent = role === 'user' ? 'You' : 'Assistant';
+  label.textContent = role === 'user' ? 'You' : 'Zephyr';
 
   if (imageDataUrl && role === 'user') {
     const img = document.createElement('img');
