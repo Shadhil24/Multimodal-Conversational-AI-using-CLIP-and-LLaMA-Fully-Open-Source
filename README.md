@@ -1,5 +1,7 @@
 # ImageBot – AI Image-to-Text
 
+Open-source multimodal pipeline: **CLIP/BLIP** for vision and **Ollama (LLaMA-family)** for language—image understanding and context-aware conversation without paid APIs.
+
 A **FastAPI** app that turns images into text using a **vision model** (BLIP and/or CLIP) plus **Llama 3.2 (Ollama)** to polish the wording.
 
 **Why BLIP?** CLIP only scores a **fixed list** of short phrases (“a couple”, “a child”, …). Two children can wrongly rank as “a couple” because the list may not contain “two kids standing together”, and embeddings confuse “two people” with romantic pairs. **BLIP** is a **captioning** model: it generates an open sentence from pixels (e.g. “two young children standing side by side”), which fits scenes like yours much better.
