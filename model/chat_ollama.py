@@ -9,20 +9,21 @@ def format_user_turn(user_text: str | None, blip_caption: str | None) -> str:
     t = (user_text or "").strip()
     if blip_caption and t:
         return (
-            "[Note—rough machine read of their photo, for you only—don't repeat back unless they ask]\n"
+            "[Automatic image caption for context only—do not quote unless the user asks]\n"
             f"{blip_caption}\n\n"
-            f"They texted:\n{t}\n\n"
-            "Answer like their friend: straight to the point about what they asked. "
-            "Don't analyze the picture, the wall, the lighting, or what this could work for "
-            "unless that's what they're asking."
+            f"User message:\n{t}\n\n"
+            "Respond directly to their question. If they ask for your opinion, how they look, "
+            "or explicitly want more than a short reply, answer with nuance: specific, balanced, "
+            "constructive—not a single dismissive sentence. Do not pile into unrelated scene "
+            "analysis unless they asked."
         )
     if blip_caption and not t:
         return (
-            "[Note—rough machine read of their photo, for you only]\n"
+            "[Automatic image caption for context only]\n"
             f"{blip_caption}\n\n"
-            "They only sent a pic, no words. Reply like a friend would—short, genuine, maybe "
-            "one casual reaction to what's probably in it. Not a formal paragraph-by-paragraph "
-            "description unless it really fits the vibe."
+            "The user sent an image with no accompanying text. Reply briefly and appropriately—"
+            "a short, substantive reaction is enough. Avoid a long, formal description unless "
+            "a detailed readout clearly fits."
         )
     if not blip_caption and t:
         return t

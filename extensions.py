@@ -1,5 +1,5 @@
 """
-Shared model singletons and vision helpers (used by API services and Flask app).
+Shared model singletons and vision helpers (used by API services and FastAPI app).
 """
 from config import Config
 from model.blip_handler import BlipHandler

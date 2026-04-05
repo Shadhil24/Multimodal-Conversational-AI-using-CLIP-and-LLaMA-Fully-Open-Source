@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ImageBot – Quick analyze</title>
+  <title>Analyze · ImageBot</title>
   <link rel="stylesheet" href="/static/css/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -12,12 +12,11 @@
   <header class="header">
     <div class="header-inner">
       <div class="logo">
-        <span class="logo-icon">🖼️</span>
         <span class="logo-text">ImageBot</span>
       </div>
       <nav class="nav-links" aria-label="Main">
         <a href="/" class="nav-link">Chat</a>
-        <a href="/legacy" class="nav-link active">Quick analyze</a>
+        <a href="/legacy" class="nav-link active">Analyze</a>
       </nav>
       <div class="status-pill" id="statusPill">
         <span class="status-dot" id="statusDot"></span>
@@ -28,11 +27,11 @@
 
   <main class="main">
     <section class="hero">
-      <h1 class="hero-title">Turn Images into Words</h1>
+      <h1 class="hero-title">Image to text</h1>
       <p class="hero-subtitle">
-        Upload any image: <strong>BLIP</strong> writes an open caption,
-        <strong>Llama 3.2</strong> polishes it. Optional <strong>CLIP</strong> tags via
-        <code class="hero-code">VISION_BACKEND</code>.
+        Upload an image: <strong>BLIP</strong> produces a draft caption;
+        <strong>Llama 3.2</strong> refines it. Optional <strong>CLIP</strong> tag scores when
+        <code class="hero-code">VISION_BACKEND</code> includes CLIP.
       </p>
     </section>
 
@@ -41,9 +40,9 @@
         <h2 class="card-title">Upload Image</h2>
 
         <div class="drop-zone" id="dropZone">
-          <div class="drop-icon">📁</div>
-          <p class="drop-label">Drag & drop an image here</p>
-          <p class="drop-sub">or click to browse</p>
+          <div class="drop-icon" aria-hidden="true">+</div>
+          <p class="drop-label">Drop an image here</p>
+          <p class="drop-sub">or click to choose a file</p>
           <input type="file" id="fileInput" accept="image/*" hidden />
         </div>
 
@@ -67,8 +66,8 @@
         <h2 class="card-title">Results</h2>
 
         <div class="placeholder" id="placeholder">
-          <div class="placeholder-icon">🔍</div>
-          <p>Upload an image and click <strong>Analyse</strong> to see results here.</p>
+          <div class="placeholder-icon" aria-hidden="true">…</div>
+          <p>Upload an image, then run <strong>Analyse</strong> to view output here.</p>
         </div>
 
         <div id="blipSection" style="display:none">

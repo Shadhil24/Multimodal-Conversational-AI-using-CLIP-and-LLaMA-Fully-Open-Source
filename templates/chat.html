@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ImageBot Chat</title>
+  <title>Assistant · ImageBot</title>
   <link rel="stylesheet" href="/static/css/style.css" />
   <link rel="stylesheet" href="/static/css/chat.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -13,12 +13,11 @@
   <header class="header">
     <div class="header-inner">
       <div class="logo">
-        <span class="logo-icon">💬</span>
         <span class="logo-text">ImageBot</span>
       </div>
       <nav class="nav-links" aria-label="Main">
         <a href="/" class="nav-link active">Chat</a>
-        <a href="/legacy" class="nav-link">Quick analyze</a>
+        <a href="/legacy" class="nav-link">Analyze</a>
       </nav>
       <div class="status-pill" id="statusPill">
         <span class="status-dot" id="statusDot"></span>
@@ -30,10 +29,10 @@
   <main class="chat-main">
     <div class="chat-thread" id="chatThread" aria-live="polite">
       <div class="chat-welcome" id="chatWelcome">
-        <h1 class="chat-welcome-title">Chat with your assistant</h1>
+        <h1 class="chat-welcome-title">Assistant</h1>
         <p class="chat-welcome-text">
-          Send <strong>text</strong>, attach an <strong>image</strong>, or both—like other chat apps.
-          Images are understood with BLIP + your Ollama model.
+          Send a message, attach an image, or both. Images are interpreted with BLIP and your
+          configured Ollama model for context.
         </p>
       </div>
     </div>
@@ -45,12 +44,12 @@
       </div>
       <div class="chat-composer">
         <input type="file" id="attachInput" accept="image/*" hidden />
-        <button type="button" class="icon-btn" id="attachBtn" title="Attach image">🖼️</button>
+        <button type="button" class="icon-btn" id="attachBtn" title="Attach image" aria-label="Attach image">+</button>
         <textarea
           id="chatInput"
           class="chat-input"
           rows="1"
-          placeholder="Message… (optional if you attach an image)"
+          placeholder="Message (optional if you attach an image)"
           maxlength="8000"
         ></textarea>
         <button type="button" class="chat-send" id="sendBtn" title="Send">
@@ -58,12 +57,12 @@
           <span class="btn-spinner" id="sendSpinner" style="display:none"></span>
         </button>
       </div>
-      <p class="chat-hint">Enter to send · Shift+Enter newline</p>
+      <p class="chat-hint">Enter to send · Shift+Enter for a new line</p>
     </div>
   </main>
 
   <footer class="footer chat-footer">
-    <p>ImageBot chat · Ollama <span id="footerModel"></span></p>
+    <p>ImageBot · Ollama <span id="footerModel"></span></p>
   </footer>
 
   <script src="/static/js/api.js"></script>

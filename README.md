@@ -1,6 +1,6 @@
 # ImageBot – AI Image-to-Text
 
-A Flask app that turns images into text using a **vision model** (BLIP and/or CLIP) plus **Llama 3.2 (Ollama)** to polish the wording.
+A **FastAPI** app that turns images into text using a **vision model** (BLIP and/or CLIP) plus **Llama 3.2 (Ollama)** to polish the wording.
 
 **Why BLIP?** CLIP only scores a **fixed list** of short phrases (“a couple”, “a child”, …). Two children can wrongly rank as “a couple” because the list may not contain “two kids standing together”, and embeddings confuse “two people” with romantic pairs. **BLIP** is a **captioning** model: it generates an open sentence from pixels (e.g. “two young children standing side by side”), which fits scenes like yours much better.
 
@@ -38,9 +38,8 @@ User uploads image
 
 ```
 imagebot/
-├── app.py                  # Flask app: UI routes + registers API blueprint
+├── main.py                 # FastAPI app: UI, static files, `/api/*` (JSON + SSE)
 ├── extensions.py           # Model singletons + run_vision()
-├── blueprints/api.py       # REST API only (`/api/*`, JSON + SSE)
 ├── services/               # Business logic used by the API
 │   ├── chat_service.py
 │   └── analyze_service.py
@@ -195,7 +194,7 @@ Same as above but streams the LLM response token-by-token using **Server-Sent Ev
 - **[OpenAI CLIP](https://github.com/openai/CLIP)** (optional) – zero-shot tag scores
 - **[Ollama](https://ollama.com)** – local LLM inference
 - **[Llama 3.2:1b](https://ollama.com/library/llama3.2)** – text refinement
-- **[Flask](https://flask.palletsprojects.com/)** – web framework
+- **[FastAPI](https://fastapi.tiangolo.com/)** + **[Uvicorn](https://www.uvicorn.org/)** – web framework and ASGI server
 - **PyTorch** – model inference
 
 ---

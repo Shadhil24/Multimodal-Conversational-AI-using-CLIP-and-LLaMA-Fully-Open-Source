@@ -1,6 +1,6 @@
 """Chat API business logic (Ollama + optional vision)."""
 import json
-from typing import Any, Generator
+from typing import Generator
 
 from config import Config
 from extensions import get_chat_ollama, run_vision
@@ -12,15 +12,12 @@ from model.chat_ollama import (
 from utils.image_utils import allowed_file, load_image_from_bytes
 
 
-def parse_chat_multipart(form, files) -> tuple[list[dict], str, Any]:
-    raw = form.get("history", "[]")
+def parse_history_json(history_raw: str) -> list[dict]:
+    """Parse the `history` form field (JSON array of messages)."""
     try:
-        history = validate_history(json.loads(raw))
+        return validate_history(json.loads(history_raw or "[]"))
     except (json.JSONDecodeError, TypeError):
         raise ValueError("Invalid history JSON") from None
-    message = form.get("message", "") or ""
-    image_file = files.get("image")
-    return history, message, image_file
 
 
 def run_chat_completion(
